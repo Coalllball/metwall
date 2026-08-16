@@ -1,0 +1,20 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "metwall"
+version = "0.1.0"
+description = "Met Museum artwork wallpaper: fetch, compose, apply"
+requires-python = ">=3.9"
+dependencies = [
+    "Pillow",
+    "requests",
+]
+
+[project.scripts]
+wallpaper = "wallpaper:main"
+
+[tool.setuptools]
+py-modules = ["wallpaper", "met", "render", "store", "notes", "library"]
+packages = ["platforms", "server"]

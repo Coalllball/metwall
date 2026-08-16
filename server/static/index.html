@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Met Wallpaper · 艺术壁纸库</title>
+<link rel="stylesheet" href="/style.css">
+</head>
+<body>
+<header class="topbar">
+  <div class="brand">
+    <span class="logo">MET</span>
+    <div>
+      <h1>艺术壁纸库</h1>
+      <p class="sub">The Metropolitan Museum of Art · Open Access</p>
+    </div>
+  </div>
+  <div class="actions">
+    <span id="count" class="count"></span>
+    <input id="searchBox" class="search-box" type="text" placeholder="搜索作品 / 艺术家…">
+    <button id="themeBtn" class="btn ghost icon" title="切换深浅色">☾</button>
+    <button id="favBtn" class="btn ghost">♥ 收藏 <span id="favCount">0</span></button>
+    <button id="histBtn" class="btn ghost">历史</button>
+    <button id="refresh" class="btn">换一批</button>
+  </div>
+</header>
+
+<main id="grid" class="grid"></main>
+<div id="loading" class="loading">
+  <div class="spinner"></div>
+  <span>正在从大都会取画…</span>
+</div>
+<div id="end" class="end hidden">到底了，点「换一批」继续逛</div>
+
+<!-- 左侧面板：收藏 / 历史 -->
+<div id="panel" class="panel hidden">
+  <div class="panel-backdrop" id="panelBackdrop"></div>
+  <aside class="panel-side" id="panelSide">
+    <div class="panel-tabs">
+      <button class="tab active" data-tab="fav">♥ 收藏</button>
+      <button class="tab" data-tab="hist">历史</button>
+    </div>
+    <div id="panelBody" class="panel-body"></div>
+  </aside>
+</div>
+
+<!-- 详情抽屉 -->
+<div id="drawer" class="drawer hidden">
+  <div class="drawer-backdrop" id="drawerBackdrop"></div>
+  <aside class="drawer-panel" id="drawerPanel">
+    <button class="drawer-close" id="drawerClose">×</button>
+    <div id="detail" class="detail"></div>
+  </aside>
+</div>
+
+<div id="toast" class="toast hidden"></div>
+
+<script src="/app.js"></script>
+</body>
+</html>
