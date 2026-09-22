@@ -59,6 +59,10 @@ jobs:
   macos:
     name: macOS .app + DMG
     runs-on: macos-latest
+    # 注：secrets 不能直接用在 step 的 if 里（会触发工作流校验失败），
+    # 先落到 job 级 env 再判断。
+    env:
+      CERT_P12: ${{ secrets.MACOS_CERT_P12 }}
     steps:
       - uses: actions/checkout@v4
 
@@ -103,9 +107,8 @@ jobs:
       # 本步骤会自动做签名 + 公证 + 装订：
       #   MACOS_CERT_P12 / MACOS_CERT_PASSWORD / APPLE_ID / APPLE_TEAM_ID / APPLE_APP_PASSWORD
       - name: 签名与公证（配置了证书才执行）
-        if: ${{ secrets.MACOS_CERT_P12 != '' }}
+        if: env.CERT_P12 != ''
         env:
-          CERT_P12: ${{ secrets.MACOS_CERT_P12 }}
           CERT_PW: ${{ secrets.MACOS_CERT_PASSWORD }}
         run: |
           echo "$CERT_P12" | base64 -d > cert.p12
