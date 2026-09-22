@@ -19,9 +19,11 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, ROOT)
 
 import render  # noqa: E402
+from console import setup_console  # noqa: E402
 
 
 def main():
+    setup_console()
     ap = argparse.ArgumentParser(description="从 seed 素材离线渲染风格预览")
     ap.add_argument("--out", default="preview", help="输出目录（默认 preview/）")
     ap.add_argument("--size", default="1920x1080", help="分辨率 WxH（默认 1920x1080）")

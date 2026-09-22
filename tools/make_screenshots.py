@@ -11,7 +11,10 @@ from PIL import Image, ImageDraw
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import render  # noqa: E402
+from console import setup_console  # noqa: E402
 from platforms.base import user_data_dir  # noqa: E402
+
+setup_console()
 
 OBJECT_ID = 436535  # Van Gogh, Wheat Field with Cypresses（公版）
 OUT = "docs/screenshots"

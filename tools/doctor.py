@@ -15,12 +15,15 @@ import sys
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, ROOT)
 
+from console import setup_console  # noqa: E402
+
 
 def line(label, value):
     print(f"  {label:<22} {value}")
 
 
 def main():
+    setup_console()
     ap = argparse.ArgumentParser()
     ap.add_argument("--apply", action="store_true", help="真实设置壁纸验证适配层")
     args = ap.parse_args()

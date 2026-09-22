@@ -18,6 +18,7 @@ import met
 import notes
 import render
 import store
+from console import setup_console
 from platforms import get_scheduler, get_setter, monitors, open_image
 
 CACHE = met.CACHE
@@ -372,6 +373,7 @@ def cmd_schedule(args):
 
 
 def main():
+    setup_console()
     ap = argparse.ArgumentParser(description="Met Museum 艺术壁纸（跨平台）")
     sub = ap.add_subparsers(dest="cmd")
 

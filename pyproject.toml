@@ -37,7 +37,7 @@ wallpaper = "wallpaper:main"
 Homepage = "https://github.com/Coalllball/metwall"
 
 [tool.setuptools]
-py-modules = ["wallpaper", "met", "render", "store", "notes", "library"]
+py-modules = ["wallpaper", "met", "render", "store", "notes", "library", "console"]
 packages = ["platforms", "server", "assets"]
 
 [tool.setuptools.package-data]
