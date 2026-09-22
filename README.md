@@ -1,3 +1,5 @@
+[**中文**](README.md) | [English](README.en.md)
+
 # Met Wallpaper — 大都会艺术博物馆壁纸
 
 从 Met Museum 公开 API 随机拉取高清艺术品，自动排版合成壁纸（含作品背景信息），并设置为桌面壁纸。
