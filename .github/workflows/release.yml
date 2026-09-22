@@ -1,0 +1,159 @@
+name: Release
+
+# 打 tag（v1.0.0）或手动触发 → 出 Windows 单文件 exe 与 macOS .app + DMG
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  # ── Windows：单文件 exe（免 Python 环境）────────────────────
+  windows:
+    name: Windows 单文件 exe
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: 安装依赖
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[web]" pyinstaller
+
+      - name: 编译 multiwallpaper.exe（每屏独立壁纸，COM 工具）
+        shell: bash
+        run: bash platforms/tools/build.sh
+
+      - name: PyInstaller 打包
+        run: >
+          pyinstaller --noconfirm --clean --onefile --name MetWallpaper
+          --add-data "assets/fonts;assets/fonts"
+          --add-data "seed;seed"
+          --add-data "server/static;server/static"
+          --add-data "platforms/tools/multiwallpaper.exe;platforms/tools"
+          --collect-submodules uvicorn
+          packaging/desktop.py
+
+      - name: 冒烟测试（打不开就不发）
+        shell: bash
+        run: |
+          ./dist/MetWallpaper.exe --help
+          ./dist/MetWallpaper.exe monitors
+
+      - name: 产物体积
+        shell: bash
+        run: ls -lh dist/
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: MetWallpaper-windows
+          path: dist/MetWallpaper.exe
+
+  # ── macOS：.app + DMG ──────────────────────────────────────
+  macos:
+    name: macOS .app + DMG
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: 安装依赖
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[web]" pyinstaller
+
+      - name: PyInstaller 打包 .app
+        run: >
+          pyinstaller --noconfirm --clean --windowed
+          --name "Met Wallpaper"
+          --osx-bundle-identifier com.oldspirit.metwallpaper
+          --add-data "assets/fonts:assets/fonts"
+          --add-data "seed:seed"
+          --add-data "server/static:server/static"
+          --collect-submodules uvicorn
+          packaging/desktop.py
+
+      - name: 冒烟测试（.app 能否启动并出图）
+        shell: bash
+        run: |
+          python tools/doctor.py --apply || true
+          test -d "dist/Met Wallpaper.app"
+
+      - name: 制作 DMG
+        run: |
+          mkdir -p dmg
+          cp -R "dist/Met Wallpaper.app" dmg/
+          ln -s /Applications dmg/Applications
+          VER="${GITHUB_REF_NAME:-dev}"
+          hdiutil create -volname "Met Wallpaper" -srcfolder dmg -ov -format UDZO \
+            -fs HFS+ "dist/MetWallpaper-${VER}-macos.dmg"
+          hdiutil verify "dist/MetWallpaper-${VER}-macos.dmg"
+
+      # 未签名的 app 首次打开会被 Gatekeeper 拦截（用户需右键→打开）。
+      # 想消除警告：Apple Developer 账号($99/年) 后配置以下 secrets，
+      # 本步骤会自动做签名 + 公证 + 装订：
+      #   MACOS_CERT_P12 / MACOS_CERT_PASSWORD / APPLE_ID / APPLE_TEAM_ID / APPLE_APP_PASSWORD
+      - name: 签名与公证（配置了证书才执行）
+        if: ${{ secrets.MACOS_CERT_P12 != '' }}
+        env:
+          CERT_P12: ${{ secrets.MACOS_CERT_P12 }}
+          CERT_PW: ${{ secrets.MACOS_CERT_PASSWORD }}
+        run: |
+          echo "$CERT_P12" | base64 -d > cert.p12
+          security create-keychain -p actions build.keychain
+          security default-keychain -s build.keychain
+          security unlock-keychain -p actions build.keychain
+          security import cert.p12 -k build.keychain -P "$CERT_PW" -T /usr/bin/codesign
+          security set-key-partition-list -S apple-tool:,apple: -s -k actions build.keychain
+          codesign --deep --force --options runtime --sign "Developer ID Application" \
+            "dist/Met Wallpaper.app"
+          xcrun notarytool submit "dist/"*.dmg \
+            --apple-id "${{ secrets.APPLE_ID }}" \
+            --team-id "${{ secrets.APPLE_TEAM_ID }}" \
+            --password "${{ secrets.APPLE_APP_PASSWORD }}" --wait
+          xcrun stapler staple "dist/"*.dmg
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: MetWallpaper-macos
+          path: dist/*.dmg
+
+  # ── 汇总到 Release ─────────────────────────────────────────
+  publish:
+    name: 发布
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: [windows, macos]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+          merge-multiple: true
+      - uses: softprops/action-gh-release@v2
+        with:
+          files: artifacts/**
+          generate_release_notes: true
+          body: |
+            ## 安装
+
+            **Windows** — 下载 `MetWallpaper.exe`，双击即启动面板（浏览器自动打开）。
+            命令行用法：`MetWallpaper.exe --help`
+
+            **macOS** — 下载 `MetWallpaper-*-macos.dmg`，打开后把 app 拖进 Applications。
+            首次打开若被 Gatekeeper 拦截（未签名版本），右键 → 打开，或执行：
+
+            ```
+            xattr -dr com.apple.quarantine "/Applications/Met Wallpaper.app"
+            ```
+
+            两个包都已内置字体与种子图，**无需安装 Python**。

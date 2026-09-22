@@ -6,15 +6,41 @@ build-backend = "setuptools.build_meta"
 name = "metwall"
 version = "0.1.0"
 description = "Met Museum artwork wallpaper: fetch, compose, apply"
+readme = "README.md"
+license = { text = "MIT" }
 requires-python = ">=3.9"
 dependencies = [
-    "Pillow",
-    "requests",
+    "Pillow>=9.0",
+    "requests>=2.28",
+]
+classifiers = [
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Topic :: Multimedia :: Graphics",
+]
+
+[project.optional-dependencies]
+# Web dashboard（`wallpaper serve`）——不装也能用 CLI 全部功能
+web = [
+    "fastapi>=0.100",
+    "uvicorn>=0.23",
+]
+dev = [
+    "pytest>=7",
 ]
 
 [project.scripts]
 wallpaper = "wallpaper:main"
 
+[project.urls]
+Homepage = "https://github.com/Coalllball/metwall"
+
 [tool.setuptools]
 py-modules = ["wallpaper", "met", "render", "store", "notes", "library"]
-packages = ["platforms", "server"]
+packages = ["platforms", "server", "assets"]
+
+[tool.setuptools.package-data]
+# 内置开源字体（Gelasio ≈ Georgia、Cousine ≈ Courier New）必须随包分发，
+# 否则非 Windows 平台没有系统字体可用，渲染直接失败。授权见 fonts/*-OFL.txt
+assets = ["fonts/*.ttf", "fonts/*.txt"]

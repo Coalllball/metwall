@@ -6,7 +6,17 @@ build/
 .venv/
 venv/
 *.log
-*.exe
 .DS_Store
 .idea/
 .vscode/
+.pytest_cache/
+*.spec
+
+# multiwallpaper.exe 是构建产物：由 platforms/tools/build.sh 编译，
+# 发布流程（.github/workflows/release.yml）会自动编译并随包分发。
+*.exe
+
+# 本地预览与字体对比输出
+preview/
+_diff/
+dmg/

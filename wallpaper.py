@@ -40,6 +40,12 @@ def make_wallpaper(info, style):
     size = setter.screen_size()
 
     # 多屏：每屏按各自分辨率渲染（比例正确不拉伸）
+    # random 必须先解析成具体风格：否则循环里每调一次 render("random") 就重摇一次，
+    # 三块屏会得到三种不同排版。
+    if style == "random":
+        import random as _r
+        style = _r.choice(list(render.STYLES))
+
     ms = monitors()
     if len(ms) > 1:
         paths = []

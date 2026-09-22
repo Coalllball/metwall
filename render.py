@@ -3,6 +3,7 @@
 新增风格 = 写一个函数接收 (img: PIL.Image, info: dict, size: (w,h)) 返回合成图，
 再用 @register("风格名") 注册。CLI 用 --style 指定或 random 随机。
 """
+import os
 import random
 
 from PIL import Image, ImageDraw, ImageFont, ImageFilter
@@ -24,15 +25,32 @@ def render(info, style, size, img_path):
         style = random.choice(list(STYLES))
     img = Image.open(img_path).convert("RGB")
     fn = STYLES[style]
-    return fn(img, info, size), style
+    return fn(img, sanitize_info(info), size), style
 
 
 # ── 公共工具 ─────────────────────────────────────────────────
-FONT_DIR = "C:/Windows/Fonts"
+# 内置开源字体：Gelasio ≈ Georgia、Cousine ≈ Courier New（均为 SIL OFL，可自由分发）。
+#
+# 为什么不用系统字体：Georgia / Courier New 是微软授权字体，**不可随包分发**；
+# 且 Linux 不自带、macOS 把它们放在 /System/Library/Fonts/Supplemental —— 而 Pillow
+# 只搜 /Library/Fonts、/System/Library/Fonts、~/Library/Fonts，够不着该目录。
+# 结果是 Linux 上 9 种风格全部抛 OSError、macOS 同样存疑。
+#
+# 为什么选这两个：与 Georgia / Courier New **公制兼容**，字符宽度/换行点/行距完全一致，
+# 换字体后排版零变化（实测文本宽度逐项相同，见 tools/fetch_fonts.py 的自检）。
+FONT_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "assets", "fonts")
+
+FONT_FILES = {
+    "serif": "Gelasio-Regular.ttf",
+    "serif_bold": "Gelasio-Bold.ttf",
+    "serif_italic": "Gelasio-Italic.ttf",
+    "mono": "Cousine-Regular.ttf",
+    "mono_bold": "Cousine-Bold.ttf",
+}
 
 
 def _font(name, size):
-    return ImageFont.truetype(f"{FONT_DIR}/{name}", size)
+    return ImageFont.truetype(os.path.join(FONT_DIR, FONT_FILES[name]), size)
 
 
 def cover(img, size):
@@ -88,6 +106,17 @@ def wrap_text(draw, text, font, max_width):
     return lines
 
 
+def sanitize_info(info):
+    """把元数据里的字符串统一压成单行。
+
+    Met 的 title / medium / objectDate 等字段确实存在内嵌换行与多余空白
+    （如标题里带 "\\n"），而 Pillow 的 textlength() 对多行文本直接抛
+    ValueError: can't measure length of multiline text —— 会让整张壁纸渲染失败。
+    在入口处清洗一次，所有风格一并受益。
+    """
+    return {k: (" ".join(v.split()) if isinstance(v, str) else v) for k, v in info.items()}
+
+
 def text_with_shadow(draw, xy, text, font, fill, shadow=(0, 0, 0, 160), offset=2):
     x, y = xy
     draw.text((x + offset, y + offset), text, font=font, fill=shadow)
@@ -119,16 +148,16 @@ def render_gallery(img, info, size):
     max_w = W - 2 * margin
     title_size = int(H * 0.052)
     while title_size > 24:
-        f = _font("georgiab.ttf", title_size)
+        f = _font("serif_bold", title_size)
         if draw.textlength(title, font=f) <= max_w:
             break
         title_size -= 4
 
-    f_title = _font("georgiab.ttf", title_size)
-    f_artist = _font("georgia.ttf", max(int(H * 0.026), 18))
-    f_dep = _font("georgiai.ttf", max(int(H * 0.020), 13))
-    f_meta = _font("georgia.ttf", max(int(H * 0.020), 14))
-    f_brand = _font("georgia.ttf", max(int(H * 0.016), 12))
+    f_title = _font("serif_bold", title_size)
+    f_artist = _font("serif", max(int(H * 0.026), 18))
+    f_dep = _font("serif_italic", max(int(H * 0.020), 13))
+    f_meta = _font("serif", max(int(H * 0.020), 14))
+    f_brand = _font("serif", max(int(H * 0.016), 12))
 
     y = H - margin
     white = (255, 255, 255, 255)
@@ -172,7 +201,7 @@ def render_minimal(img, info, size):
     date = info.get("objectDate") or "n.d."
     department = info.get("department") or ""
 
-    f = _font("georgiai.ttf", max(int(H * 0.022), 16))
+    f = _font("serif_italic", max(int(H * 0.022), 16))
     line = f"{title}  —  {artist}  ·  {date}"
     w = draw.textlength(line, font=f)
     x = max((W - w) / 2, 20)
@@ -180,7 +209,7 @@ def render_minimal(img, info, size):
     draw.text((x, base_y), line, font=f, fill=(255, 255, 255, 225))
 
     if department:
-        f_dep = _font("georgiai.ttf", max(int(H * 0.015), 11))
+        f_dep = _font("serif_italic", max(int(H * 0.015), 11))
         dw = draw.textlength(department, font=f_dep)
         draw.text(((W - dw) / 2, base_y + f.size + 4), department, font=f_dep, fill=(255, 255, 255, 165))
     return canvas
@@ -208,7 +237,7 @@ def render_label(img, info, size):
 
     # 标题
     title = info.get("title") or "Untitled"
-    f_title = _font("georgiab.ttf", max(int(H * 0.034), 20))
+    f_title = _font("serif_bold", max(int(H * 0.034), 20))
     lines = wrap_text(draw, title, f_title, max_w)
     y = int(H * 0.10)
     for ln in lines[:4]:
@@ -217,13 +246,13 @@ def render_label(img, info, size):
 
     # 艺术家
     artist = (info.get("artistDisplayName") or "Unknown artist").upper()
-    f_artist = _font("georgia.ttf", max(int(H * 0.020), 14))
+    f_artist = _font("serif", max(int(H * 0.020), 14))
     y += int(H * 0.02)
     draw.text((x, y), artist, font=f_artist, fill=(90, 90, 90))
     y += f_artist.size * 2
 
     # 年代 / 部门 / 材质 / 文化 / 尺寸
-    f_meta = _font("georgia.ttf", max(int(H * 0.018), 13))
+    f_meta = _font("serif", max(int(H * 0.018), 13))
     for seg in [info.get("objectDate"), info.get("department"), info.get("medium"),
                 info.get("culture"), info.get("dimensions")]:
         if seg:
@@ -233,7 +262,7 @@ def render_label(img, info, size):
 
     # 顶部细线 + 展签头
     draw.rectangle([x, int(H * 0.07), x + int(info_w * 0.25), int(H * 0.07) + 2], fill=(180, 150, 100))
-    f_tag = _font("georgia.ttf", max(int(H * 0.015), 11))
+    f_tag = _font("serif", max(int(H * 0.015), 11))
     draw.text((x, int(H * 0.07) + 8), "THE MET · EXHIBITION LABEL", font=f_tag, fill=(160, 140, 110))
 
     return canvas
@@ -250,7 +279,7 @@ def render_editorial(img, info, size):
     draw = ImageDraw.Draw(canvas)
 
     # 顶部刊头
-    f_head = _font("georgia.ttf", max(int(H * 0.018), 12))
+    f_head = _font("serif", max(int(H * 0.018), 12))
     head = "THE METROPOLITAN MUSEUM OF ART"
     draw.text(((W - draw.textlength(head, font=f_head)) / 2, int(H * 0.022)),
               head, font=f_head, fill=(255, 255, 255, 200))
@@ -262,10 +291,10 @@ def render_editorial(img, info, size):
     # 大标题（自适应宽度，从底部向上排）
     title_size = int(H * 0.055)
     max_w = W * 0.9
-    f_title = _font("georgiab.ttf", title_size)
+    f_title = _font("serif_bold", title_size)
     while f_title.size > 30 and draw.textlength(title, font=f_title) > max_w:
         title_size -= 3
-        f_title = _font("georgiab.ttf", title_size)
+        f_title = _font("serif_bold", title_size)
     lines = wrap_text(draw, title, f_title, max_w)
     y = H - int(H * 0.055)
     for ln in reversed(lines):
@@ -273,7 +302,7 @@ def render_editorial(img, info, size):
         draw.text(((W - draw.textlength(ln, font=f_title)) / 2, y), ln, font=f_title, fill=(240, 238, 232))
 
     # 艺术家 · 年代（标题上方）
-    f_art = _font("georgia.ttf", max(int(H * 0.022), 14))
+    f_art = _font("serif", max(int(H * 0.022), 14))
     line = f"{artist}  ·  {date}"
     y -= f_art.size * 2.0
     draw.text(((W - draw.textlength(line, font=f_art)) / 2, y), line, font=f_art, fill=(198, 188, 172))
@@ -301,7 +330,7 @@ def render_mono(img, info, size):
     artist = info.get("artistDisplayName") or "Unknown artist"
     date = info.get("objectDate") or "n.d."
     line = f"{title}  —  {artist}  ·  {date}"
-    f = _font("georgiai.ttf", max(int(H * 0.020), 14))
+    f = _font("serif_italic", max(int(H * 0.020), 14))
     w = draw.textlength(line, font=f)
     text_with_shadow(draw, (max((W - w) / 2, m + 12), H - int(H * 0.045)),
                      line, f, fill=(255, 255, 255, 230), shadow=(0, 0, 0, 140))
@@ -319,9 +348,9 @@ def render_poster(img, info, size):
 
     # 标题（图上方，自适应折行）
     title = info.get("title") or "Untitled"
-    f_title = _font("georgiab.ttf", max(int(H * 0.045), 26))
+    f_title = _font("serif_bold", max(int(H * 0.045), 26))
     while f_title.size > 22 and draw.textlength(title, font=f_title) > W * 0.88:
-        f_title = _font("georgiab.ttf", f_title.size - 3)
+        f_title = _font("serif_bold", f_title.size - 3)
     lines = wrap_text(draw, title, f_title, int(W * 0.88))
     y = int(H * 0.028)
     for ln in lines:
@@ -339,7 +368,7 @@ def render_poster(img, info, size):
     # 图下方：红棕装饰线 + 艺术家 · 年代
     artist = (info.get("artistDisplayName") or "Unknown artist").upper()
     date = info.get("objectDate") or ""
-    f_sub = _font("georgia.ttf", max(int(H * 0.02), 13))
+    f_sub = _font("serif", max(int(H * 0.02), 13))
     sub = " · ".join(x for x in [artist, date] if x)
     draw.rectangle([ax, ay + art_h + int(H * 0.02), ax + art_w, ay + art_h + int(H * 0.02) + 2],
                    fill=(152, 92, 70))
@@ -347,7 +376,7 @@ def render_poster(img, info, size):
     draw.text(((W - w) / 2, ay + art_h + int(H * 0.032)), sub, font=f_sub, fill=(90, 80, 70))
 
     # 底部品牌
-    f_btm = _font("georgia.ttf", max(int(H * 0.015), 10))
+    f_btm = _font("serif", max(int(H * 0.015), 10))
     brand = "THE METROPOLITAN MUSEUM OF ART  ·  OPEN ACCESS"
     w = draw.textlength(brand, font=f_btm)
     draw.text(((W - w) / 2, H - int(H * 0.032)), brand, font=f_btm, fill=(150, 135, 115))
@@ -366,8 +395,8 @@ def render_archive(img, info, size):
     draw = ImageDraw.Draw(canvas)
     draw.rectangle([0, art_h, W, art_h + 2], fill=(120, 110, 95))
 
-    f_tag = _font("cour.ttf", max(int(H * 0.02), 13))
-    f_val = _font("courbd.ttf", max(int(H * 0.022), 14))
+    f_tag = _font("mono", max(int(H * 0.02), 13))
+    f_val = _font("mono_bold", max(int(H * 0.022), 14))
     pad = int(W * 0.06)
     x = pad
     # 标签列宽按实际渲染宽度动态计算（等宽字体，>8 对齐后所有标签同宽）
@@ -396,7 +425,7 @@ def render_archive(img, info, size):
             draw.text((x + label_w, y + i * line_h), ln, font=f_val, fill=(40, 40, 38))
         y += len(lines) * line_h + block_gap
 
-    f_small = _font("cour.ttf", max(int(H * 0.014), 10))
+    f_small = _font("mono", max(int(H * 0.014), 10))
     draw.text((x, H - int(H * 0.028)), "MET COLLECTION  —  OPEN ACCESS", font=f_small, fill=(150, 135, 115))
 
     return canvas
@@ -423,11 +452,11 @@ def render_pedestal(img, info, size):
 
     # 顶部标题（小，居中）
     title = info.get("title") or "Untitled"
-    f_t = _font("georgiab.ttf", max(int(H * 0.026), 15))
+    f_t = _font("serif_bold", max(int(H * 0.026), 15))
     tsize = f_t.size
     while tsize > 13 and draw.textlength(title, font=f_t) > W * 0.9:
         tsize -= 2
-        f_t = _font("georgiab.ttf", tsize)
+        f_t = _font("serif_bold", tsize)
     tw = draw.textlength(title, font=f_t)
     draw.text(((W - tw) / 2, int(H * 0.028)), title, font=f_t, fill=(240, 238, 232))
 
@@ -440,10 +469,10 @@ def render_pedestal(img, info, size):
     date = info.get("objectDate") or ""
     dept = info.get("department") or ""
     line = "  ·  ".join(x for x in [artist, date, dept] if x)
-    f_s = _font("georgia.ttf", max(int(H * 0.021), 14))
+    f_s = _font("serif", max(int(H * 0.021), 14))
     sw = draw.textlength(line, font=f_s)
     while f_s.size > 12 and sw > W * 0.92:
-        f_s = _font("georgia.ttf", f_s.size - 2)
+        f_s = _font("serif", f_s.size - 2)
         sw = draw.textlength(line, font=f_s)
     draw.text(((W - sw) / 2, line_y + int(H * 0.016)), line, font=f_s, fill=(205, 197, 182))
     return canvas
@@ -475,19 +504,19 @@ def render_column(img, info, size):
     # 部门小标签（红棕）
     dept = info.get("department") or ""
     if dept:
-        f_tag = _font("georgia.ttf", max(int(H * 0.018), 12))
+        f_tag = _font("serif", max(int(H * 0.018), 12))
         draw.text((x, y), dept.upper(), font=f_tag, fill=(180, 130, 90))
         y += int(f_tag.size * 2.0)
 
     # 标题大字（换行）
     title = info.get("title") or "Untitled"
-    f_title = _font("georgiab.ttf", max(int(H * 0.045), 26))
+    f_title = _font("serif_bold", max(int(H * 0.045), 26))
     tsize = f_title.size
     while tsize > 18:
         if all(draw.textlength(ln, font=f_title) <= max_w for ln in wrap_text(draw, title, f_title, max_w)[:3]):
             break
         tsize -= 2
-        f_title = _font("georgiab.ttf", tsize)
+        f_title = _font("serif_bold", tsize)
     for ln in wrap_text(draw, title, f_title, max_w)[:3]:
         draw.text((x, y), ln, font=f_title, fill=(240, 238, 232))
         y += int(f_title.size * 1.3)
@@ -498,13 +527,13 @@ def render_column(img, info, size):
     y += int(H * 0.035)
 
     # 艺术家 / 年代 / 材质 竖排
-    f_s = _font("georgia.ttf", max(int(H * 0.021), 14))
+    f_s = _font("serif", max(int(H * 0.021), 14))
     for label, val in [("ARTIST", info.get("artistDisplayName") or "Unknown artist"),
                        ("DATE", info.get("objectDate") or "n.d."),
                        ("MEDIUM", info.get("medium") or "")]:
         if not val:
             continue
-        draw.text((x, y), label, font=_font("georgia.ttf", max(int(H * 0.015), 11)),
+        draw.text((x, y), label, font=_font("serif", max(int(H * 0.015), 11)),
                   fill=(150, 135, 115))
         y += int(f_s.size * 1.15)
         lines = wrap_text(draw, str(val), f_s, max_w)[:2]
@@ -515,13 +544,13 @@ def render_column(img, info, size):
 
     # 底部来源 + 品牌
     credit = info.get("creditLine") or ""
-    f_c = _font("georgia.ttf", max(int(H * 0.015), 11))
+    f_c = _font("serif", max(int(H * 0.015), 11))
     yc = H - int(H * 0.09)
     if credit:
         for ln in wrap_text(draw, credit, f_c, max_w)[:2]:
             draw.text((x, yc), ln, font=f_c, fill=(120, 112, 100))
             yc += int(f_c.size * 1.4)
     draw.text((x, H - int(H * 0.04)), "MET  ·  OPEN ACCESS",
-              font=_font("georgia.ttf", max(int(H * 0.013), 10)), fill=(120, 112, 100))
+              font=_font("serif", max(int(H * 0.013), 10)), fill=(120, 112, 100))
 
     return canvas
