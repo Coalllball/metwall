@@ -131,12 +131,12 @@ python tools/preview.py --style pedestal --size 1080x1920
 | 平台 | 出图 | 设为壁纸 | 定时轮换 |
 |---|---|---|---|
 | Windows 10/11 | ✅ 已实测 | ✅ 已实测（SPI；每屏独立用 `IDesktopWallpaper`） | ✅ 已实测（schtasks） |
-| macOS | ✅ CI 实测 | ⚠️ **尚未在真机确认**（osascript） | ⚠️ 未确认（LaunchAgent） |
+| macOS | ✅ CI 实测 | ✅ CI 实测（osascript 返回成功） | ⚠️ 未确认（LaunchAgent） |
 | Linux | ✅ CI 实测 | ⚠️ 未确认（gsettings / plasma-apply / feh） | ⚠️ 未确认（crontab） |
 
-出图在三平台每次提交都由 CI 验证。macOS/Linux 的**设壁纸**已实现但未经证实——不生效时跑
-`python tools/doctor.py --apply`，它会打印卡在哪一步。新增平台 = 在 `platforms/` 实现
-`WallpaperSetter` 和 `Scheduler` 两个接口。
+出图在三平台每次提交都由 CI 验证；macOS 的设壁纸也已在 CI 真机跑通。Linux 的设壁纸仍是"已实现但未
+证实"——不生效时跑 `python tools/doctor.py --apply`，它会打印卡在哪一步。新增平台 = 在
+`platforms/` 实现 `WallpaperSetter` 和 `Scheduler` 两个接口。
 
 ## 字体
 

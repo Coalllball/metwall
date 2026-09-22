@@ -33,6 +33,7 @@ jobs:
       - name: PyInstaller 打包
         run: >
           pyinstaller --noconfirm --clean --onefile --name MetWallpaper
+          --paths .
           --add-data "assets/fonts;assets/fonts"
           --add-data "seed;seed"
           --add-data "server/static;server/static"
@@ -43,8 +44,12 @@ jobs:
       - name: 冒烟测试（打不开就不发）
         shell: bash
         run: |
+          set -e
           ./dist/MetWallpaper.exe --help
           ./dist/MetWallpaper.exe monitors
+          # 冻结后的二进制最容易在资源路径上翻车（字体/seed 找不到）——
+          # 真出一次图，确认 assets/fonts 与 seed 都被打进去了
+          ./dist/MetWallpaper.exe next --no-apply
 
       - name: 产物体积
         shell: bash
@@ -79,6 +84,7 @@ jobs:
         run: >
           pyinstaller --noconfirm --clean --windowed
           --name "Met Wallpaper"
+          --paths .
           --osx-bundle-identifier com.oldspirit.metwallpaper
           --add-data "assets/fonts:assets/fonts"
           --add-data "seed:seed"
@@ -86,11 +92,17 @@ jobs:
           --collect-submodules uvicorn
           packaging/desktop.py
 
-      - name: 冒烟测试（.app 能否启动并出图）
+      - name: 冒烟测试（真跑一次打包出的二进制）
         shell: bash
         run: |
-          python tools/doctor.py --apply || true
-          test -d "dist/Met Wallpaper.app"
+          set -e
+          APP="dist/Met Wallpaper.app/Contents/MacOS/Met Wallpaper"
+          test -x "$APP"
+          "$APP" --help
+          # 冻结后最容易在资源路径上翻车：确认字体与 seed 真的进了包，并能出图
+          find "dist/Met Wallpaper.app" -name '*.ttf' | sort
+          find "dist/Met Wallpaper.app" -path '*seed/meta/*.json' | head -3
+          "$APP" next --no-apply
 
       - name: 制作 DMG
         run: |

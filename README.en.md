@@ -147,12 +147,13 @@ python tools/preview.py --style pedestal --size 1080x1920
 | Platform | Compose | Set wallpaper | Scheduled rotation |
 |---|---|---|---|
 | Windows 10/11 | ✅ verified | ✅ verified (SPI; per-monitor via `IDesktopWallpaper`) | ✅ verified (schtasks) |
-| macOS | ✅ verified in CI | ⚠️ **not yet confirmed on real hardware** (osascript) | ⚠️ not confirmed (LaunchAgent) |
+| macOS | ✅ verified in CI | ✅ verified in CI (osascript succeeds) | ⚠️ not confirmed (LaunchAgent) |
 | Linux | ✅ verified in CI | ⚠️ not confirmed (gsettings / plasma-apply / feh) | ⚠️ not confirmed (crontab) |
 
-Composing is exercised on all three platforms by CI on every push. Wallpaper *setting* on macOS and Linux is
-implemented but unproven — if it misbehaves, `python tools/doctor.py --apply` prints exactly which step fails.
-Adding a platform = implement `WallpaperSetter` and `Scheduler` under `platforms/`.
+Composing is exercised on all three platforms by CI on every push, and macOS wallpaper *setting* now passes on a real
+macOS runner. Linux wallpaper setting is implemented but unproven — if it misbehaves,
+`python tools/doctor.py --apply` prints exactly which step fails. Adding a platform = implement `WallpaperSetter` and
+`Scheduler` under `platforms/`.
 
 ## Fonts
 
